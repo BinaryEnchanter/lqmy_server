@@ -55,7 +55,16 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.lqmy.server.MainApp</mainClass>
+                    <launcher>lqmy-server</launcher>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>create-runtime-image</id>
+                        <goals>
+                            <goal>jlink</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

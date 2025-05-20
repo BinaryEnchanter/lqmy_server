@@ -1,22 +1,14 @@
 package com.lqmy.server;
 
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.math.BigInteger;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.KeyStore;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.DefaultSSLWebSocketServerFactory;
 import org.java_websocket.server.WebSocketServer;
 
 import com.google.gson.Gson;
@@ -33,25 +25,25 @@ public class WebSocketServerImpl extends WebSocketServer {
 
     public WebSocketServerImpl(int port) throws Exception {
         super(new InetSocketAddress("0.0.0.0", port));
-        // --- SSL/TLS Setup ---
-        // 1. 加载 keystore（PKCS12）
-        String keystorePassword = "changeit";
-        KeyStore ks = KeyStore.getInstance("PKCS12");
-        try (InputStream is = getClass().getResourceAsStream("/signaling-server.p12")) {
-            if (is == null) {
-                throw new FileNotFoundException("Certificate not found in classpath!");
-            }
-            ks.load(is, keystorePassword.toCharArray());
-        }
+        // // --- SSL/TLS Setup ---
+        // // 1. 加载 keystore（PKCS12）
+        // String keystorePassword = "changeit";
+        // KeyStore ks = KeyStore.getInstance("PKCS12");
+        // try (InputStream is = getClass().getResourceAsStream("/signaling-server.p12")) {
+        //     if (is == null) {
+        //         throw new FileNotFoundException("Certificate not found in classpath!");
+        //     }
+        //     ks.load(is, keystorePassword.toCharArray());
+        // }
 
-        // 2. 初始化 KeyManager
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(ks, keystorePassword.toCharArray());
-        // 3. 初始化 SSLContext
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), null, null);
-        // 4. 设置 WebSocketFactory 为 SSL
-        setWebSocketFactory(new DefaultSSLWebSocketServerFactory(sslContext));
+        // // 2. 初始化 KeyManager
+        // KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+        // kmf.init(ks, keystorePassword.toCharArray());
+        // // 3. 初始化 SSLContext
+        // SSLContext sslContext = SSLContext.getInstance("TLS");
+        // sslContext.init(kmf.getKeyManagers(), null, null);
+        // // 4. 设置 WebSocketFactory 为 SSL
+        // setWebSocketFactory(new DefaultSSLWebSocketServerFactory(sslContext));
     }
 
     @Override
@@ -153,6 +145,7 @@ public class WebSocketServerImpl extends WebSocketServer {
                     JsonObject pong = new JsonObject();
                     pong.addProperty("type", "pong");
                     conn.send(gson.toJson(pong));
+                    System.out.println("ping:来自"+from);
                 } catch (Exception e) {
                     // 消息发送失败，告知发送方
                     System.out.println(e);
@@ -162,8 +155,19 @@ public class WebSocketServerImpl extends WebSocketServer {
                     conn.send(gson.toJson(ack));
                 }
             }
-
+            case "close" -> {
+                /*
+                 * {"type":"close"}
+                 */
+                try {
+                    //String from = o.get("from").getAsString();
+                    conn.close();
+                } catch (Exception e) {
+                    System.out.println(e);
+                }
+            }
             default -> {
+               
             }
         }
         // ignore
@@ -195,7 +199,7 @@ public class WebSocketServerImpl extends WebSocketServer {
         scheduler.scheduleAtFixedRate(() -> {
             long now = System.currentTimeMillis();
             ConnectionManager.get().allClients().forEach(c -> {
-                if (now - c.getLastHeartbeat() > HEARTBEAT_TIMEOUT) {
+                if (now - c.getLastHeartbeat() == HEARTBEAT_TIMEOUT) {
                     System.out.println("心跳超时，关闭连接：" + c.getUuid());
                     c.getSocket().close(); // 会触发 onClose，自动移除
 
